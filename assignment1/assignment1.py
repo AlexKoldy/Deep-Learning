@@ -14,17 +14,17 @@ Code would not run without this:
 tf.enable_eager_execution()
 
 # Known parameters
-N = 50
+N = 50 # number of discrete steps in function
 sigma_noise = 0.1
-epsilon = np.random.normal(0, sigma_noise, N)
+epsilon = np.random.normal(0, sigma_noise, N) # noise
 
 # Loop parameters
 '''
 Editting these parameters may yield better results
 '''
 M = 10 # number of gaussian basis functions 
-epochs = 1000
-learning_rate = 0.02
+epochs = 1000 # loop iterations
+learning_rate = 0.02 # step size
 
 # Noisy sin wave
 x = np.linspace(0, 1, N)
@@ -78,31 +78,36 @@ for epoch in range(epochs):
         sigma[j].assign_sub(gradients[2][j]*learning_rate)
         b[j].assign_sub(gradients[3][j]*learning_rate)
 
+    '''
+    Once again, this line is taken directly from (1). It helps visualize the loss as more iterations of the loop go through.
+    '''
     print(f"Epoch count {epoch}: Loss value: {loss.numpy()}")
 
-# Print out regression approximation
+# Plot regression approximation
 plt.figure(1)
 plt.title("Fit")
 plt.xlabel("x")
 plt.ylabel("y", rotation="horizontal")
 plt.scatter(x, y, label="Noisy Sine Curve", color="green")
 plt.plot(x, np.sin(2*np.pi*x), label="Sine Curve", color="red")
-plt.plot(x, y_hat(x), label="Approximation", color="blue")
+plt.plot(x, y_hat(x), '--', label="Approximation", color="blue")
 plt.legend()
 plt.show()
 
-# Print out basis functions
+# Plot basis functions
 plt.figure(2)
-plt.title("Base for Fit")
+plt.title("Bases for Fit")
 plt.xlabel("x")
 plt.ylabel("y", rotation="horizontal")
 for j in range(M):
     plt.plot(x, phi(x, mu[j], sigma[j]))
 plt.show()
 
+
 '''
 References:
 (1) https://www.machinelearningplus.com/deep-learning/linear-regression-tensorflow/
+(2) Cooper Union ECE-472: Deep Learning - Learning Materials
 '''
 
 
