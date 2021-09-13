@@ -86,8 +86,8 @@ class Neural_Network():
 	class Perceptron():
 		def __init__(self, activation_type, input_shape):
 			'''Perceptron parameters'''
-			self.W = tf.Variable(np.random.uniform(-1, 1, (input_shape)))
-			self.b = tf.Variable(np.random.uniform(-1, 1), dtype=tf.float64)
+			self.W = tf.Variable(np.random.uniform(-0.1, 0.1, (input_shape)))
+			self.b = tf.Variable(np.random.uniform(-0.1, 0.1), dtype=tf.float64)
 
 			'''Establish activation type'''
 			self.activation_type = activation_type
@@ -157,7 +157,7 @@ class Neural_Network():
 
 		'''Learning parameters'''
 		self.epochs = 100
-		self.learning_rate = 2
+		self.learning_rate = 0.3
 
 		'''Track layers, weights, and biases'''
 		self.layers = []
@@ -165,9 +165,9 @@ class Neural_Network():
 		self.b = []
 	
 		'''Create neural network'''
-		self.create_layer(width[0], 'Sigmoid', (2, 1))
+		self.create_layer(width[0], 'ReLu', (2, 1))
 		for i in range(depth - 1):
-			self.create_layer(width[i + 1], 'Sigmoid', (self.layers[i - 1].width, 1))
+			self.create_layer(width[i + 1], 'ReLu', (self.layers[i - 1].width, 1))
 		self.create_layer(1, 'Sigmoid', (self.layers[-1].width, 1))
 		
 		'''Parameters for optimization'''
@@ -230,13 +230,13 @@ class Neural_Network():
 			for layer in self.layers:
 				layer.update(input)
 				input = layer.output
-			y_hat = self.layers[-1].output[0].numpy()
+			y_hat = round(self.layers[-1].output[0].numpy())
 			y = Y[i].numpy()
 
 			print("y: " + str(y) + " | y_hat: " + str(y_hat))
 
-			if (y_hat != 0 and y_hat != 1) or (y != 0 and y != 1):
-				print("NO!")
+			#if (y_hat != 0 and y_hat != 1) or (y != 0 and y != 1):
+				#print("NO!")
 			if y_hat == y:
 				num_correct += 1
 			else:
@@ -245,29 +245,17 @@ class Neural_Network():
 		print("Number correct: " + str(num_correct))
 		print("Number incorrect: " + str(num_incorrect))
 		
-
-			
-
-		
 data = Data()				
-nn = Neural_Network(3, [16, 16, 16], data)
+nn = Neural_Network(1, [3], data)
 nn.train()
 nn.test(data)
 				
-
-
-
-
-
-	
 def plot_results():
 	data = Data()
 	plt.figure(figsize=(10, 10))
 	plt.scatter(data.spiral_0.x, data.spiral_0.y, color='red', edgecolors='black', s=15)
 	plt.scatter(data.spiral_1.x, data.spiral_1.y, color='blue', edgecolors='black', s=15)
 	plt.show()
-
-		
 
 '''
 References:
