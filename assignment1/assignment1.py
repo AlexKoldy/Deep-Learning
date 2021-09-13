@@ -106,8 +106,8 @@ plt.show()
 
 '''
 References:
-(1) https://www.machinelearningplus.com/deep-learning/linear-regression-tensorflow/
-(2) Cooper Union ECE-472: Deep Learning - Learning Materials
+(1) Cooper Union ECE-472: Deep Learning - Learning Materials
+(2) https://www.machinelearningplus.com/deep-learning/linear-regression-tensorflow/
 '''
 
 
