@@ -63,10 +63,14 @@ class Data():
 	def get_batch(self, batch_size=50):
 		batch_start = np.random.randint(0, 2*self.N - batch_size - 1)
 		batch_end = batch_start + batch_size
-		X_batch = self.X[:, batch_start:batch_end]
-		Y_batch = self.Y[batch_start:batch_end]
+		X_batch = tf.convert_to_tensor(self.X[:, batch_start:batch_end])
+		Y_batch = tf.convert_to_tensor(self.Y[batch_start:batch_end])
 
 		return X_batch, Y_batch
+	
+	def convert_data(self):
+		self.X = tf.convert_to_tensor(self.X)
+		self.Y = tf.convert_to_tensor(self.Y)
 
 '''
 Multi-layer perceptron which contains 2
@@ -82,8 +86,8 @@ class Neural_Network():
 	class Perceptron():
 		def __init__(self, activation_type, input_shape):
 			'''Perceptron parameters'''
-			self.W = tf.Variable(np.random.uniform(-10, 10, (input_shape)))
-			self.b = tf.Variable(np.random.uniform(-10, 10))
+			self.W = tf.Variable(np.random.uniform(-1, 1, (input_shape)))
+			self.b = tf.Variable(np.random.uniform(-1, 1), dtype=tf.float64)
 
 			'''Establish activation type'''
 			self.activation_type = activation_type
@@ -91,25 +95,20 @@ class Neural_Network():
 		def neuron(self):
 			def activation(t):
 				if self.activation_type == 'ReLu':
-					return self.relu(t)
+					return tf.nn.relu(t)
 				elif self.activation_type == 'Sigmoid':
-					return self.sigmoid(t)
+					return tf.nn.sigmoid(t)
 
-			return tf.convert_to_tensor(activation(np.sum(self.W.numpy()*self.input) + self.b))
+			return activation(tf.reduce_sum(self.W * self.input) + self.b)
 
-		def relu(self, t):
-			return np.math.maximum(0, t)
-		
-		def sigmoid(self, t):
-			return 1 / (1 + tf.math.exp(-t))
-
-		def update(self, input, W, b):
+		def update(self, input):
 			'''Perceptron input'''
 			self.input = input
 
+		def step(self, W, b):
 			'''Perceptron parameters'''
-			self.W = W
-			self.b = b
+			self.W.assign_sub(W)
+			self.b.assign_sub(b)
 
 	'''
 	Layer of perceptrons which can
@@ -124,6 +123,8 @@ class Neural_Network():
 			self.W = []
 			self.b = []
 
+			self.input_shape = input_shape
+
 			for _ in range(width):
 				perceptron = Neural_Network.Perceptron(activation_type, input_shape)
 				self.perceptrons.append(perceptron)
@@ -131,13 +132,18 @@ class Neural_Network():
 				self.b.append(perceptron.b)
 		
 		def update(self, input):
-			self.output = np.zeros((len(self.perceptrons), 1))
+			self.output = []
+
+			for perceptron in self.perceptrons:
+				perceptron.update(input)
+				self.output.append(perceptron.neuron())
+
+		def step(self, W, b, learning_rate):
 			i = 0
 			for perceptron in self.perceptrons:
-				perceptron.update(input, perceptron.W, perceptron.b)
-				self.output[i] = perceptron.neuron()
+				perceptron.step(W[i]*learning_rate, b[i]*learning_rate)
 				i += 1
-			
+				
 	'''
 	Establish a neural network with: 
 	depth: number of hidden layers
@@ -150,18 +156,18 @@ class Neural_Network():
 		self.data = data
 
 		'''Learning parameters'''
-		self.epochs = 1
-		self.learning_rate = 0.1
+		self.epochs = 100
+		self.learning_rate = 2
 
 		'''Track layers, weights, and biases'''
 		self.layers = []
 		self.W = []
 		self.b = []
-		
+	
 		'''Create neural network'''
 		self.create_layer(width[0], 'Sigmoid', (2, 1))
 		for i in range(depth - 1):
-			self.create_layer(width[i + 1], 'ReLu', (self.layers[i - 1].width, 1))
+			self.create_layer(width[i + 1], 'Sigmoid', (self.layers[i - 1].width, 1))
 		self.create_layer(1, 'Sigmoid', (self.layers[-1].width, 1))
 		
 		'''Parameters for optimization'''
@@ -185,40 +191,68 @@ class Neural_Network():
 		for epoch in range(self.epochs):
 			with tf.GradientTape() as tape:
 				tape.watch([self.W, self.b])
-				y_hat = np.zeros(Y.shape)
+				y_hat = []
 				for i in range(self.data.batch_size):
-					input = X[:, i]
+					input = np.reshape(X[:, i], (2, 1))
 					for layer in self.layers:
 						layer.update(input)
 						input = layer.output
-					y_hat[i] = self.layers[-1].output
+					y_hat.append(self.layers[-1].output[0])
+
 				y_hat = tf.convert_to_tensor(y_hat)
-				Y = tf.convert_to_tensor(Y)
-				
-				print("Y: ")
-				print(Y)
-				print("y_hat: ")
-				print(tf.convert_to_tensor(y_hat))
-
 				loss = self.loss(Y, y_hat)
-
-				print("loss: ")
-				print(-Y*tf.math.log(y_hat) - (1 - Y)*tf.math.log(1 - y_hat))
-
-				print("full_loss: ")
-				print(tf.reduce_mean(-Y*tf.math.log(y_hat) - (1 - Y)*tf.math.log(1 - y_hat)))
 			
 			gradients = tape.gradient(loss, [self.W, self.b])
-			print("gradient")
-			print(gradients)
+
+			print(f"Epoch count {epoch}: Loss value: {loss.numpy()}")
+
+			self.optimize(gradients)
+
+	def optimize(self, gradients):
+		start = 0
+		end = 0
+		for layer in self.layers:
+			end += layer.width
+			W = np.asarray(gradients)[0][start:end]
+			b = np.asarray(gradients)[1][start:end]
+			layer.step(W, b, self.learning_rate)
+			start += layer.width
+	
+	def test(self, data):
+		num_correct = 0
+		num_incorrect = 0
+
+		data.convert_data()
+		X, Y = data.X, data.Y
+
+		for i in range(2*data.N):
+			input = np.reshape(X[:, i], (2, 1))
+			for layer in self.layers:
+				layer.update(input)
+				input = layer.output
+			y_hat = self.layers[-1].output[0].numpy()
+			y = Y[i].numpy()
+
+			print("y: " + str(y) + " | y_hat: " + str(y_hat))
+
+			if (y_hat != 0 and y_hat != 1) or (y != 0 and y != 1):
+				print("NO!")
+			if y_hat == y:
+				num_correct += 1
+			else:
+				num_incorrect += 1
+		
+		print("Number correct: " + str(num_correct))
+		print("Number incorrect: " + str(num_incorrect))
+		
+
 			
 
-
-			
-			
+		
 data = Data()				
-nn = Neural_Network(1, [2], data)
+nn = Neural_Network(3, [16, 16, 16], data)
 nn.train()
+nn.test(data)
 				
 
 
@@ -229,8 +263,8 @@ nn.train()
 def plot_results():
 	data = Data()
 	plt.figure(figsize=(10, 10))
-	plt.scatter(data.spiral_1.x, data.spiral_1.y, color='red', edgecolors='black', s=15)
-	plt.scatter(data.spiral_2.x, data.spiral_2.y, color='blue', edgecolors='black', s=15)
+	plt.scatter(data.spiral_0.x, data.spiral_0.y, color='red', edgecolors='black', s=15)
+	plt.scatter(data.spiral_1.x, data.spiral_1.y, color='blue', edgecolors='black', s=15)
 	plt.show()
 
 		
