@@ -4,7 +4,6 @@ ECE 472 - Deep Learning
 Assignment 2
 '''
 
-from operator import ne
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
