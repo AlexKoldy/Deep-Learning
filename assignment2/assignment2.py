@@ -34,7 +34,6 @@ class Data():
 	def __init__(self):
 		'''Data organization parameters'''
 		self.batch_size = 10
-		self.batch_start = 0
 
 		'''Data generation parameters'''
 		self.N = 200
@@ -61,12 +60,11 @@ class Data():
 		self.Y = self.Y[new_order]
 
 	# Does it matter if I use a point that was already used??
-	def get_batch(self, batch_size):
-		batch_end = self.batch_start + batch_size
-		X_batch = tf.convert_to_tensor(self.X[:, self.batch_start:batch_end].T)
-		Y_batch = tf.convert_to_tensor(self.Y[self.batch_start:batch_end])
-
-		self.batch_start += batch_size
+	def get_batch(self, batch_size ):
+		batch_start = np.random.randint(0, 2*self.N - batch_size - 1)
+		batch_end = batch_start + batch_size
+		X_batch = tf.convert_to_tensor(self.X[:, batch_start:batch_end].T)
+		Y_batch = tf.convert_to_tensor(self.Y[batch_start:batch_end])
 
 		return X_batch, Y_batch
 	
@@ -116,8 +114,8 @@ class Neural_Network(tf.Module):
 		self.data = data
 
 		'''Learning parameters'''
-		self.epochs = 3000
-		self.learning_rate = 0.008
+		self.epochs = 1000
+		self.learning_rate = 0.005
 
 		'''Create neural network'''
 		self.layers = []
@@ -134,14 +132,10 @@ class Neural_Network(tf.Module):
 		return tf.reduce_mean(-y*tf.math.log(y_hat) - (1 - y)*tf.math.log(1 - y_hat))
 
 	def train(self):
-		'''Shuffle data before starting'''
-		self.data.shuffle()
-		num_batches = int(2*self.data.N/self.data.batch_size)
+		num_batches = 100
+		X, Y = self.data.get_batch(self.data.batch_size)
 
-		for i in range(num_batches):
-			batch = i
-			X, Y = self.data.get_batch(self.data.batch_size)
-
+		for j in range(num_batches):
 			optimizer = tf.keras.optimizers.SGD(learning_rate=self.learning_rate)
 
 			for epoch in range(self.epochs):
@@ -157,10 +151,10 @@ class Neural_Network(tf.Module):
 					y_hat = tf.reshape(tf.convert_to_tensor(y_hat, dtype=tf.float64), (self.data.batch_size, ))
 
 					loss = self.loss(Y, y_hat)
-				
+					
 				gradients = tape.gradient(loss, self.trainable_variables)
 
-				print(f"Batch #{batch} & Epoch count {epoch}: Loss value: {loss.numpy()}")
+				print(f"Batch #{j} & Epoch count {epoch}: Loss value: {loss.numpy()}")
 
 				optimizer.apply_gradients(zip(gradients, self.trainable_variables))
 		
@@ -188,11 +182,20 @@ class Neural_Network(tf.Module):
 		
 		print("Number correct: " + str(num_correct))
 		print("Number incorrect: " + str(num_incorrect))
+
+		return num_incorrect
 		
 data = Data()				
-nn = Neural_Network(2, [64, 32], data)
-nn.train()
-nn.test(data)
+nn = Neural_Network(2, [2000, 2000], data)
+
+'''Shuffle data before starting'''
+nn.data.shuffle()
+
+good_prediction = False
+while good_prediction == False:
+	nn.train()
+	if nn.test(data) == 0:
+		good_prediction = True
 				
 def plot_results():
 	data = Data()
