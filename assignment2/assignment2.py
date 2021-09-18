@@ -1,13 +1,9 @@
 '''
 Alexander Koldy
 ECE 472 - Deep Learning
-Assignment 2
-'''
-
-'''
-Perform binary classification on the spirals dataset 
-using a multi-layer perceptron.You must generate 
-the data yourself.
+Assignment 2: Perform binary classification on 
+the spirals dataset using a multi-layer perceptron.'
+You must generate the data yourself.
 '''
 
 import numpy as np
