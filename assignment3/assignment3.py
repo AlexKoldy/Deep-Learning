@@ -32,11 +32,15 @@ class Data():
 		'''Establish training and validation data'''
 		training_data = np.frombuffer(training_data.read(self.image_shape[0]*self.image_shape[1]*(self.num_training + self.num_testing)), dtype=np.uint8).astype(np.float64)
 		training_data = training_data.reshape(self.num_training + self.num_validation, self.image_shape[0], self.image_shape[1], 1)
+		new_order = np.random.permutation(self.num_training + self.num_validation)
+		training_data = training_data[new_order, :, :, :]
 		self.validation_data = training_data[50000:, :, :, :]
 		self.training_data = training_data[:50000, :, :, :]
+	
 
 		'''Establish training and validation labels'''
 		training_labels = np.frombuffer(training_labels.read(self.num_training + self.num_validation), dtype=np.uint8).astype(np.float64)
+		training_labels = training_labels[new_order]
 		self.validation_labels = training_labels[50000:]
 		self.training_labels = training_labels[:50000]
 
@@ -49,36 +53,79 @@ class Data():
 		testing_labels = np.frombuffer(testing_labels.read(self.num_testing), dtype=np.uint8).astype(np.float64)
 		self.testing_labels = testing_labels
 
-		#print(self.validation_labels)
+		#print(self.training_labels[107])
 		#image = np.asarray(self.training_data[107]).squeeze()
 		#plt.imshow(image)
 		#plt.show()
 
-'''Create data'''
-training_data_path = 'data/train-images-idx3-ubyte.gz'
-training_label_path = 'data/train-labels-idx1-ubyte.gz'
-testing_data_path = 'data/t10k-images-idx3-ubyte.gz'
-testing_label_path = 'data/t10k-labels-idx1-ubyte.gz'
+'''
+Network that gets >= 95.5% accuracy not test case
+'''
+def proven_case():	
+	'''Create data'''
+	training_data_path = 'data/train-images-idx3-ubyte.gz'
+	training_label_path = 'data/train-labels-idx1-ubyte.gz'
+	testing_data_path = 'data/t10k-images-idx3-ubyte.gz'
+	testing_label_path = 'data/t10k-labels-idx1-ubyte.gz'
 
-data = Data()
-data.load_data(training_data_path, training_label_path, testing_data_path, testing_label_path)
+	data = Data()
+	data.load_data(training_data_path, training_label_path, testing_data_path, testing_label_path)
 
-'''Establish Convolutional Neural Network'''
-model = tf.keras.models.Sequential()
-model.add(tf.keras.layers.Conv2D(filters=28, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1), kernel_regularizer=tf.keras.regularizers.l2(0.01)))
-model.add(tf.keras.layers.MaxPooling2D((2, 2)))
-model.add(tf.keras.layers.Conv2D(filters=56, kernel_size=(3, 3), activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)))
-model.add(tf.keras.layers.MaxPooling2D((2, 2)))
-model.add(tf.keras.layers.Conv2D(filters=56, kernel_size=(3, 3), activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)))
-model.add(tf.keras.layers.Dropout(0.2))
-model.add(tf.keras.layers.Flatten())
-model.add(tf.keras.layers.Dense(56, activation='relu'))
-model.add(tf.keras.layers.Dense(10, activation='softmax'))
+	'''Establish Convolutional Neural Network'''
+	model = tf.keras.models.Sequential()
+	model.add(tf.keras.layers.Conv2D(filters=28, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1), kernel_regularizer=tf.keras.regularizers.l2(0.01)))
+	model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+	model.add(tf.keras.layers.Conv2D(filters=56, kernel_size=(3, 3), activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)))
+	model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+	model.add(tf.keras.layers.Conv2D(filters=56, kernel_size=(3, 3), activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)))
+	model.add(tf.keras.layers.Dropout(0.2))
+	model.add(tf.keras.layers.Flatten())
+	model.add(tf.keras.layers.Dense(56, activation='relu'))
+	model.add(tf.keras.layers.Dense(10, activation='softmax'))
 
-'''Training/Validation'''
-model.compile(optimizer='Adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+	'''Training/Validation'''
+	model.compile(optimizer='Adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
-history = model.fit(data.training_data, data.training_labels, epochs=3, validation_data=(data.validation_data, data.validation_labels))
+	print("Training/Validation Data!")
+	history = model.fit(data.training_data, data.training_labels, epochs=3, validation_data=(data.validation_data, data.validation_labels))
+
+	'''Testing'''
+	print("Testing Data!")
+	history = model.evaluate(data.testing_data, data.testing_labels)
+
+	'''Check summary'''
+	model.summary()
+
+'''
+Attempt at using less parameters. NOT WORKING right now, since its not technically part
+of the assignment (just a bonus), there is no reason to look at this
+'''
+def less_parameters_case():
+	'''Create data'''
+	training_data_path = 'data/train-images-idx3-ubyte.gz'
+	training_label_path = 'data/train-labels-idx1-ubyte.gz'
+	testing_data_path = 'data/t10k-images-idx3-ubyte.gz'
+	testing_label_path = 'data/t10k-labels-idx1-ubyte.gz'
+
+	data = Data()
+	data.load_data(training_data_path, training_label_path, testing_data_path, testing_label_path)
+
+	'''Establish Convolutional Neural Network'''
+	model = tf.keras.models.Sequential()
+	model.add(tf.keras.layers.Dense(1, activation='softmax'))
+
+	'''Training/Validation'''
+	model.compile(optimizer='Adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+	history = model.fit(np.reshape(data.training_data, (data.num_training, 28*28)).mean(1), data.training_labels, epochs=1, validation_data=(np.reshape(data.validation_data, (data.num_validation, 28*28)).mean(1), data.validation_labels))
+
+	'''Testing'''
+	history = model.evaluate(np.reshape(data.testing_data, (data.num_testing, 28*28)).mean(1), data.testing_labels)
+
+	'''Check summary'''
+	model.summary()
+
+proven_case()
 
 '''
 References:
